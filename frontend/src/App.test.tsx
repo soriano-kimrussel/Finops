@@ -8,7 +8,8 @@ describe('authentication flow', () => {
   it('redirects anonymous users to the login page', async () => {
     server.use(http.get('*/api/auth/me', () => HttpResponse.json({ error: { code: 'unauthorized', message: 'x' } }, { status: 401 })))
     const { router } = renderApp(`/o/${ORG_ID}/overview`)
-    expect(await screen.findByRole('heading', { name: 'Sign in to FinOps HQ' })).toBeInTheDocument()
+    // The overview route is lazy-loaded, so the redirect waits for its module on first render.
+    expect(await screen.findByRole('heading', { name: 'Sign in to FinOps HQ' }, { timeout: 8000 })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/login')
   })
 

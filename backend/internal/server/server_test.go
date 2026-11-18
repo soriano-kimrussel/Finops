@@ -13,7 +13,7 @@ import (
 
 func TestHealthAndReadiness(t *testing.T) {
 	db := testdb.New(t)
-	h := New(Deps{Config: config.Config{FrontendOrigin: "http://localhost:5173"}, Pool: db.App})
+	h := New(Deps{Config: config.Config{FrontendOrigin: "http://localhost:5173", TokenEncryptionKey: make([]byte, 32), QuickBooks: config.QuickBooks{Mode: "simulated"}}, Pool: db.App})
 
 	for _, path := range []string{"/healthz", "/readyz"} {
 		rec := httptest.NewRecorder()
@@ -30,7 +30,7 @@ func TestHealthAndReadiness(t *testing.T) {
 
 func TestCSRFGuardRejectsMissingHeader(t *testing.T) {
 	db := testdb.New(t)
-	h := New(Deps{Config: config.Config{FrontendOrigin: "http://localhost:5173"}, Pool: db.App})
+	h := New(Deps{Config: config.Config{FrontendOrigin: "http://localhost:5173", TokenEncryptionKey: make([]byte, 32), QuickBooks: config.QuickBooks{Mode: "simulated"}}, Pool: db.App})
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/anything", strings.NewReader("{}")))

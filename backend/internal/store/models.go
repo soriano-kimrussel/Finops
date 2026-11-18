@@ -8,7 +8,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
+
+type Account struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Code           string
+	Name           string
+	Type           string
+	IsSystem       bool
+	CreatedAt      time.Time
+}
 
 type AuditLog struct {
 	ID             uuid.UUID
@@ -24,10 +35,147 @@ type AuditLog struct {
 	CreatedAt      time.Time
 }
 
+type Budget struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	ProjectID      uuid.UUID
+	CategoryID     *uuid.UUID
+	Currency       string
+	Amount         decimal.Decimal
+	Notes          *string
+	CreatedBy      *uuid.UUID
+	Version        int32
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type Currency struct {
 	Code       string
 	Name       string
 	MinorUnits int16
+}
+
+type Customer struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Name           string
+	ContactName    *string
+	Email          *string
+	Phone          *string
+	AddressLine1   *string
+	AddressLine2   *string
+	City           *string
+	Region         *string
+	PostalCode     *string
+	Country        *string
+	Currency       string
+	Status         string
+	Notes          *string
+	Source         string
+	ExternalID     *string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type Expense struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	CategoryID     uuid.UUID
+	ProjectID      *uuid.UUID
+	ExpenseDate    time.Time
+	Amount         decimal.Decimal
+	Currency       string
+	Description    *string
+	ApprovalStatus string
+	SubmittedBy    *uuid.UUID
+	ReviewedBy     *uuid.UUID
+	ReviewedAt     *time.Time
+	ReviewNote     *string
+	Version        int32
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	VendorID       uuid.UUID
+}
+
+type ExpenseCategory struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Name           string
+	IsArchived     bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type ExternalRecord struct {
+	ID                 uuid.UUID
+	OrganizationID     uuid.UUID
+	ConnectionID       uuid.UUID
+	EntityType         string
+	ExternalID         string
+	DocNumber          *string
+	DisplayName        *string
+	CustomerExternalID *string
+	InvoiceExternalID  *string
+	TxnDate            *time.Time
+	DueDate            *time.Time
+	Amount             *decimal.Decimal
+	Balance            *decimal.Decimal
+	Currency           *string
+	Raw                []byte
+	PayloadHash        []byte
+	ExternalUpdatedAt  *time.Time
+	FirstSeenJob       *uuid.UUID
+	LastSeenJob        *uuid.UUID
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type Invoice struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	CustomerID     uuid.UUID
+	ProjectID      *uuid.UUID
+	Number         string
+	Status         string
+	Currency       string
+	IssueDate      time.Time
+	DueDate        time.Time
+	DiscountType   string
+	DiscountValue  decimal.Decimal
+	TaxRate        decimal.Decimal
+	Subtotal       decimal.Decimal
+	DiscountTotal  decimal.Decimal
+	TaxTotal       decimal.Decimal
+	Total          decimal.Decimal
+	AmountPaid     decimal.Decimal
+	Notes          *string
+	SentAt         *time.Time
+	VoidedAt       *time.Time
+	VoidReason     *string
+	Source         string
+	ExternalID     *string
+	CreatedBy      *uuid.UUID
+	Version        int32
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type InvoiceItem struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	InvoiceID      uuid.UUID
+	Position       int32
+	Description    string
+	Quantity       decimal.Decimal
+	UnitPrice      decimal.Decimal
+	LineTotal      decimal.Decimal
+	CreatedAt      time.Time
+}
+
+type InvoiceNumberSequence struct {
+	OrganizationID uuid.UUID
+	Prefix         string
+	NextValue      int64
 }
 
 type Membership struct {
@@ -39,6 +187,16 @@ type Membership struct {
 	UpdatedAt      time.Time
 }
 
+type OauthState struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	UserID         uuid.UUID
+	StateHash      []byte
+	ExpiresAt      time.Time
+	UsedAt         *time.Time
+	CreatedAt      time.Time
+}
+
 type Organization struct {
 	ID           uuid.UUID
 	Name         string
@@ -46,6 +204,80 @@ type Organization struct {
 	Timezone     string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+type Payment struct {
+	ID                 uuid.UUID
+	OrganizationID     uuid.UUID
+	InvoiceID          uuid.UUID
+	Amount             decimal.Decimal
+	Currency           string
+	PaidOn             time.Time
+	Method             string
+	Reference          *string
+	Status             string
+	IdempotencyKey     string
+	RequestFingerprint []byte
+	RecordedBy         *uuid.UUID
+	ReversedAt         *time.Time
+	ReversedBy         *uuid.UUID
+	ReversalReason     *string
+	Source             string
+	ExternalID         *string
+	CreatedAt          time.Time
+}
+
+type Project struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	CustomerID     uuid.UUID
+	Name           string
+	Code           *string
+	Description    *string
+	Status         string
+	Currency       string
+	StartDate      time.Time
+	EndDate        *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type ReconciliationRecord struct {
+	ID               uuid.UUID
+	OrganizationID   uuid.UUID
+	RunID            uuid.UUID
+	EntityType       string
+	MatchKey         string
+	Fingerprint      []byte
+	MatchStatus      string
+	ExternalRecordID *uuid.UUID
+	InvoiceID        *uuid.UUID
+	PaymentID        *uuid.UUID
+	Reference        *string
+	Counterparty     *string
+	Currency         *string
+	ExternalAmount   *decimal.Decimal
+	InternalAmount   *decimal.Decimal
+	Difference       *decimal.Decimal
+	ExternalDate     *time.Time
+	InternalDate     *time.Time
+	ReviewStatus     string
+	Decision         *string
+	DecisionNote     *string
+	ReviewedBy       *uuid.UUID
+	ReviewedAt       *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type ReconciliationRun struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Trigger        string
+	StartedBy      *uuid.UUID
+	StartedAt      time.Time
+	FinishedAt     *time.Time
+	Counts         []byte
 }
 
 type Session struct {
@@ -59,6 +291,77 @@ type Session struct {
 	UserAgent  *string
 }
 
+type SyncConnection struct {
+	ID                    uuid.UUID
+	OrganizationID        uuid.UUID
+	Provider              string
+	Mode                  string
+	Status                string
+	RealmID               *string
+	CompanyName           *string
+	AccessTokenEnc        []byte
+	RefreshTokenEnc       []byte
+	AccessTokenExpiresAt  *time.Time
+	RefreshTokenExpiresAt *time.Time
+	ConnectedBy           *uuid.UUID
+	ConnectedAt           *time.Time
+	DisconnectedAt        *time.Time
+	LastSyncedAt          *time.Time
+	LastError             *string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}
+
+type SyncJob struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	ConnectionID   uuid.UUID
+	Kind           string
+	Trigger        string
+	Status         string
+	Attempts       int32
+	MaxAttempts    int32
+	RunAt          time.Time
+	LockedBy       *string
+	LockedUntil    *time.Time
+	StartedAt      *time.Time
+	FinishedAt     *time.Time
+	LastError      *string
+	Stats          []byte
+	IdempotencyKey string
+	RetryOf        *uuid.UUID
+	RequestedBy    *uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type SyncJobAttempt struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	JobID          uuid.UUID
+	Attempt        int32
+	Worker         string
+	StartedAt      time.Time
+	FinishedAt     time.Time
+	Outcome        string
+	Error          *string
+	Stats          []byte
+}
+
+type Transaction struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	AccountID      uuid.UUID
+	OccurredOn     time.Time
+	Direction      string
+	Amount         decimal.Decimal
+	Currency       string
+	Description    string
+	SourceType     string
+	SourceID       uuid.UUID
+	CreatedAt      time.Time
+}
+
 type User struct {
 	ID           uuid.UUID
 	Email        string
@@ -67,4 +370,12 @@ type User struct {
 	IsActive     bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+type Vendor struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Name           string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }

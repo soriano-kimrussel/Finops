@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -29,6 +30,8 @@ type Config struct {
 	MigrateDatabaseURL string
 	StaticDir          string
 	TokenEncryptionKey []byte
+	WorkerInProcess    bool
+	WorkerConcurrency  int
 	QuickBooks         QuickBooks
 }
 
@@ -61,6 +64,13 @@ func Load() (Config, error) {
 			RedirectURL:          os.Getenv("QUICKBOOKS_REDIRECT_URL"),
 			WebhookVerifierToken: os.Getenv("QUICKBOOKS_WEBHOOK_VERIFIER_TOKEN"),
 		},
+	}
+
+	cfg.WorkerInProcess = get("WORKER_IN_PROCESS", "true") == "true"
+	if n, err := strconv.Atoi(get("WORKER_CONCURRENCY", "2")); err == nil && n > 0 && n <= 32 {
+		cfg.WorkerConcurrency = n
+	} else {
+		return cfg, errors.New("WORKER_CONCURRENCY must be a number between 1 and 32")
 	}
 
 	if err := cfg.LogLevel.UnmarshalText([]byte(get("LOG_LEVEL", "info"))); err != nil {

@@ -1,0 +1,3 @@
+ALTER TABLE expenses DROP CONSTRAINT IF EXISTS expenses_vendor_fkey;
+ALTER TABLE expenses DROP COLUMN IF EXISTS vendor_id;
+DROP TABLE IF EXISTS vendors;

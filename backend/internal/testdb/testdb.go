@@ -44,7 +44,12 @@ func New(t testing.TB) *DB {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	admin, err := pgx.Connect(ctx, adminURL)
+	var admin *pgx.Conn
+	err := database.Retry(ctx, func() error {
+		var err error
+		admin, err = pgx.Connect(ctx, adminURL)
+		return err
+	})
 	if err != nil {
 		t.Fatalf("connect to test server: %v", err)
 	}
@@ -63,11 +68,11 @@ func New(t testing.TB) *DB {
 	ownerURL := withDatabase(adminURL, name, "", "")
 	appURL := withDatabase(adminURL, name, "finops_app", appPassword)
 
-	owner, err := database.Open(ctx, ownerURL)
+	owner, err := database.OpenWith(ctx, ownerURL, database.PoolOptions{MinConns: 1, MaxConns: 4})
 	if err != nil {
 		t.Fatalf("open owner pool: %v", err)
 	}
-	app, err := database.Open(ctx, appURL)
+	app, err := database.OpenWith(ctx, appURL, database.PoolOptions{MinConns: 4, MaxConns: 8})
 	if err != nil {
 		owner.Close()
 		t.Fatalf("open app pool: %v", err)
@@ -78,7 +83,12 @@ func New(t testing.TB) *DB {
 		owner.Close()
 		cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer ccancel()
-		conn, err := pgx.Connect(cctx, adminURL)
+		var conn *pgx.Conn
+		err := database.Retry(cctx, func() error {
+			var err error
+			conn, err = pgx.Connect(cctx, adminURL)
+			return err
+		})
 		if err != nil {
 			t.Logf("cleanup connect: %v", err)
 			return
@@ -90,6 +100,40 @@ func New(t testing.TB) *DB {
 	})
 
 	return &DB{Name: name, Owner: owner, App: app, AppURL: appURL}
+}
+
+// NewEmpty creates a throwaway database with no migrations applied and returns its owner URL.
+// Migration tests use it to step through schema versions one at a time.
+func NewEmpty(t testing.TB) string {
+	t.Helper()
+	loadEnv()
+	adminURL := os.Getenv("TEST_DATABASE_URL")
+	if adminURL == "" {
+		t.Fatal("TEST_DATABASE_URL must be set; run scripts/setup-db.ps1")
+	}
+	ctx := context.Background()
+	var admin *pgx.Conn
+	if err := database.Retry(ctx, func() error {
+		var err error
+		admin, err = pgx.Connect(ctx, adminURL)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	defer admin.Close(ctx)
+	name := "finops_m_" + randomHex(6)
+	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		conn, err := pgx.Connect(context.Background(), adminURL)
+		if err != nil {
+			return
+		}
+		defer conn.Close(context.Background())
+		_, _ = conn.Exec(context.Background(), "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)")
+	})
+	return withDatabase(adminURL, name, "", "")
 }
 
 func ensureTemplate(ctx context.Context, admin *pgx.Conn, adminURL string) (string, error) {

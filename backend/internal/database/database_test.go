@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"finopshq/internal/database"
 	"finopshq/internal/testdb"
 )
 
@@ -29,5 +30,12 @@ func TestMigrationsApplyAndAppRoleIsRestricted(t *testing.T) {
 
 	if _, err := db.App.Exec(ctx, "INSERT INTO currencies (code, name, minor_units) VALUES ('XXX', 'x', 2)"); err == nil {
 		t.Fatal("app role must not be able to modify reference data")
+	}
+
+	if err := database.AssertRestrictedRole(ctx, db.App); err != nil {
+		t.Fatalf("app role should pass the restricted-role check: %v", err)
+	}
+	if err := database.AssertRestrictedRole(ctx, db.Owner); err == nil {
+		t.Fatal("the owner role must be refused as a runtime connection")
 	}
 }

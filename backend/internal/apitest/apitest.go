@@ -3,6 +3,7 @@ package apitest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,8 +12,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"finopshq/internal/config"
+	"finopshq/internal/qbsync"
 	"finopshq/internal/server"
 	"finopshq/internal/testdb"
 )
@@ -24,6 +27,8 @@ type Env struct {
 	DB      *testdb.DB
 	Handler http.Handler
 	Config  config.Config
+	Sync    *qbsync.Service
+	Worker  *qbsync.Worker
 }
 
 func New(t testing.TB) *Env {
@@ -43,7 +48,32 @@ func NewWithConfig(t testing.TB, adjust func(*config.Config)) *Env {
 	if adjust != nil {
 		adjust(&cfg)
 	}
-	return &Env{T: t, DB: db, Handler: server.New(server.Deps{Config: cfg, Pool: db.App}), Config: cfg}
+	svc, worker, err := qbsync.Build(cfg, db.App)
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker.AfterSync = server.Reconciler(db.App)
+	worker.ID = "test-worker"
+	worker.PageSize = 7
+	worker.Backoff = func(int) time.Duration { return time.Hour }
+	svc.Kick = nil
+	return &Env{T: t, DB: db, Handler: server.New(server.Deps{Config: cfg, Pool: db.App, Sync: svc}), Config: cfg, Sync: svc, Worker: worker}
+}
+
+// RunJobs processes queued jobs until none are due.
+func (e *Env) RunJobs() int {
+	e.T.Helper()
+	n := 0
+	for {
+		worked, err := e.Worker.RunOnce(context.Background())
+		if err != nil {
+			e.T.Fatal(err)
+		}
+		if !worked {
+			return n
+		}
+		n++
+	}
 }
 
 // handlerTransport serves requests in memory. It avoids loopback sockets, whose close can
@@ -119,6 +149,21 @@ func (c *Client) Do(method, path string, body any, headers ...string) Response {
 	for i := 0; i+1 < len(headers); i += 2 {
 		req.Header.Set(headers[i], headers[i+1])
 	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		c.env.T.Fatal(err)
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	return Response{Status: res.StatusCode, Body: b, Header: res.Header}
+}
+
+// ConfigT lets tests adjust configuration without importing the config package.
+type ConfigT = config.Config
+
+// Raw sends a prepared request as-is (no CSRF header), e.g. for server-to-server webhooks.
+func (c *Client) Raw(req *http.Request) Response {
+	c.env.T.Helper()
 	res, err := c.http.Do(req)
 	if err != nil {
 		c.env.T.Fatal(err)

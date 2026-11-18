@@ -257,7 +257,11 @@ func TestAuditLogIsAppendOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(actions) < 2 || actions[0] != "organization.created" {
+	seen := map[string]bool{}
+	for _, a := range actions {
+		seen[a] = true
+	}
+	if !seen["organization.created"] || !seen["membership.added"] {
 		t.Fatalf("unexpected audit actions %v", actions)
 	}
 

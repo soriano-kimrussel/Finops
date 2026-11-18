@@ -45,6 +45,30 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	})
 }
 
+// Handle adapts a function returning (status, body, error) into a handler. A nil body with
+// status 204 writes no content.
+func Handle(fn func(w http.ResponseWriter, r *http.Request) (int, any, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		status, body, err := fn(w, r)
+		if err != nil {
+			WriteError(w, r, err)
+			return
+		}
+		if status == http.StatusNoContent {
+			w.WriteHeader(status)
+			return
+		}
+		WriteJSON(w, status, body)
+	}
+}
+
+// Decode is a generic DecodeJSON.
+func Decode[T any](w http.ResponseWriter, r *http.Request) (T, error) {
+	var v T
+	err := DecodeJSON(w, r, &v)
+	return v, err
+}
+
 // DecodeJSON reads a single JSON object, rejecting unknown fields and oversized bodies.
 func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	if ct := r.Header.Get("Content-Type"); ct != "" && !strings.HasPrefix(ct, "application/json") {
