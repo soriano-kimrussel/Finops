@@ -56,6 +56,12 @@ func (v *Validation) Add(field, msg string) {
 	}
 }
 
+// With is a shorthand for a single-field validation error.
+func (v *Validation) With(field, msg string) error {
+	v.Add(field, msg)
+	return v.Err()
+}
+
 func (v *Validation) Has(field string) bool { _, ok := v.fields[field]; return ok }
 
 func (v *Validation) Err() error {

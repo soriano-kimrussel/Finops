@@ -11,8 +11,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"finopshq/internal/auth"
+	"finopshq/internal/authz"
 	"finopshq/internal/config"
 	"finopshq/internal/httpx"
+	"finopshq/internal/orgs"
 )
 
 type Deps struct {
@@ -21,6 +24,12 @@ type Deps struct {
 }
 
 func New(d Deps) http.Handler {
+	authSvc := auth.NewService(d.Pool)
+	authH := auth.NewHandler(authSvc, !d.Config.IsDevelopment())
+	orgSvc := orgs.NewService(d.Pool, provisionOrganization)
+	orgH := orgs.NewHandler(orgSvc)
+	authH.MeExtras = orgH.MeExtras
+
 	r := chi.NewRouter()
 	r.Use(httpx.Recoverer, httpx.WithRequestID, httpx.Logger, httpx.SecurityHeaders)
 	r.Use(httpx.CSRFGuard(d.Config.FrontendOrigin, isWebhook))
@@ -41,6 +50,23 @@ func New(d Deps) http.Handler {
 	r.Route("/api", func(api chi.Router) {
 		api.NotFound(func(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteJSON(w, http.StatusNotFound, map[string]any{"error": map[string]string{"code": "not_found", "message": "no such endpoint"}})
+		})
+
+		api.Group(func(sess chi.Router) {
+			sess.Use(authH.Middleware)
+			sess.Route("/auth", authH.Routes)
+
+			sess.Group(func(authed chi.Router) {
+				authed.Use(auth.RequireUser)
+				authed.Get("/currencies", orgH.Currencies)
+				authed.Route("/orgs", func(or chi.Router) {
+					orgH.CollectionRoutes(or)
+					or.Route("/{orgID}", func(org chi.Router) {
+						org.Use(authz.OrgMiddleware(d.Pool))
+						orgH.OrgRoutes(org)
+					})
+				})
+			})
 		})
 	})
 

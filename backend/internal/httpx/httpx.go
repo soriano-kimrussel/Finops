@@ -9,10 +9,21 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+
 	"finopshq/internal/apperr"
 )
 
 const maxBodyBytes = 1 << 20
+
+func URLParamUUID(r *http.Request, name string) (uuid.UUID, error) {
+	id, err := uuid.Parse(chi.URLParam(r, name))
+	if err != nil {
+		return uuid.Nil, apperr.NotFound("resource")
+	}
+	return id, nil
+}
 
 func WriteJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

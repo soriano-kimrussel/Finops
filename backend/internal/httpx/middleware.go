@@ -15,11 +15,19 @@ import (
 
 type ctxKey int
 
-const requestIDKey ctxKey = iota
+const (
+	requestIDKey ctxKey = iota
+	clientIPKey
+)
 
 func RequestID(ctx context.Context) string {
 	id, _ := ctx.Value(requestIDKey).(string)
 	return id
+}
+
+func ClientIPFromContext(ctx context.Context) string {
+	ip, _ := ctx.Value(clientIPKey).(string)
+	return ip
 }
 
 func WithRequestID(next http.Handler) http.Handler {
@@ -31,7 +39,9 @@ func WithRequestID(next http.Handler) http.Handler {
 			id = hex.EncodeToString(b)
 		}
 		w.Header().Set("X-Request-ID", id)
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDKey, id)))
+		ctx := context.WithValue(r.Context(), requestIDKey, id)
+		ctx = context.WithValue(ctx, clientIPKey, ClientIP(r))
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
