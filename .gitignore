@@ -1,0 +1,25 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# go
+backend/bin/
+*.exe
+*.test
+coverage.out
+
+# node
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
